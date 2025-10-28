@@ -17,7 +17,7 @@ SUPABASE_KEY = st.secrets["supabase_key"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Webhook n8n
-WEBHOOK_URL = "https://TU_FLUJO.app.n8n.cloud/webhook/busqueda-cientifica"
+WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # --- INTERFAZ ---
 st.markdown("### Parámetros de búsqueda")
@@ -95,3 +95,4 @@ if st.button("🔍 Buscar artículos"):
 
             except Exception as e:
                 st.error(f"❌ Error general: {e}")
+
