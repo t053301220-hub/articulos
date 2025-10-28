@@ -11,7 +11,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 import datetime
-import json
 
 # =============================
 # CONFIGURACIÓN BASE
@@ -19,11 +18,11 @@ import json
 st.set_page_config(page_title="Asistente de Búsqueda Científica", layout="wide")
 st.title("🔬 Asistente de Búsqueda Científica")
 
-# Supabase (desde Settings > Secrets en Streamlit Cloud)
+# Supabase (desde Settings → Secrets de Streamlit Cloud)
 SUPABASE_URL = st.secrets["supabase_url"]
 SUPABASE_KEY = st.secrets["supabase_key"]
 
-# URL del webhook n8n
+# URL del webhook n8n (tu flujo activo)
 WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # =============================
@@ -47,7 +46,12 @@ def generar_pdf(df, tema, resumen_estadistico):
 
     data = [["Título", "Autores", "Año", "Fuente"]]
     for _, r in df.iterrows():
-        data.append([r["titulo"], r["autores"], str(r["año"]), r["fuente"]])
+        data.append([
+            str(r.get("titulo", "N/A")),
+            str(r.get("autores", "N/A")),
+            str(r.get("año", "N/A")),
+            str(r.get("fuente", "N/A"))
+        ])
     table = Table(data, colWidths=[200, 150, 50, 80])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -66,18 +70,18 @@ def mostrar_estadistica(df):
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Total artículos", len(df))
-    c2.metric("Fuentes únicas", df["fuente"].nunique())
-    c3.metric("Años distintos", df["año"].nunique())
+    c2.metric("Fuentes únicas", df["fuente"].nunique() if "fuente" in df else 0)
+    c3.metric("Años distintos", df["año"].nunique() if "año" in df else 0)
 
-    df["año"] = pd.to_numeric(df["año"], errors="coerce")
+    if "año" in df:
+        df["año"] = pd.to_numeric(df["año"], errors="coerce")
+        st.markdown("#### Distribución de publicaciones por año")
+        st.plotly_chart(px.histogram(df, x="año", nbins=15, title="Publicaciones por año"), use_container_width=True)
 
-    st.markdown("#### Distribución de publicaciones por año")
-    st.plotly_chart(px.histogram(df, x="año", nbins=15, title="Publicaciones por año"), use_container_width=True)
-
-    if "palabras_clave" in df.columns:
+    if "palabras_clave" in df:
         keywords = []
         for kw in df["palabras_clave"].dropna():
-            keywords.extend([k.strip() for k in kw.split(",") if k.strip()])
+            keywords.extend([k.strip() for k in str(kw).split(",") if k.strip()])
         if keywords:
             top_kw = pd.Series(keywords).value_counts().head(10)
             st.markdown("#### Palabras clave más frecuentes")
@@ -115,21 +119,21 @@ if st.button("🔍 Buscar artículos"):
                     st.error(f"❌ Error del servidor ({res.status_code}): {res.text}")
                 else:
                     data = res.json()
-                    articles = [a for a in data if isinstance(a, dict) and "titulo" in a and a["titulo"]]
-
-                    if not articles:
-                        st.warning("No se encontraron artículos válidos.")
+                    if not data:
+                        st.warning("No se encontraron artículos.")
                     else:
-                        df = pd.DataFrame(articles)
+                        df = pd.DataFrame(data)
                         st.success(f"✅ {len(df)} artículos encontrados para '{tema}'")
 
                         # Mostrar artículos
                         for _, r in df.iterrows():
-                            with st.expander(f"📄 {r['titulo']} ({r.get('año', 'N/A')})"):
-                                st.markdown(f"**Autores:** {r.get('autores', 'Desconocido')}")
-                                st.markdown(f"**Fuente:** {r.get('fuente', 'N/A')}")
+                            titulo = r.get("titulo", "Sin título")
+                            año = r.get("año", "N/A")
+                            with st.expander(f"📄 {titulo} ({año})"):
+                                st.markdown(f"**Autores:** {r.get('autores', 'No especificado')}")
+                                st.markdown(f"**Fuente:** {r.get('fuente', 'Desconocida')}")
                                 resumen = r.get('resumen', 'Sin resumen disponible')
-                                st.markdown(f"**Resumen:** {resumen[:500]}...")
+                                st.markdown(f"**Resumen:** {resumen[:600]}...")
                                 if r.get("url"):
                                     st.markdown(f"[🔗 Ver artículo]({r['url']})", unsafe_allow_html=True)
 
@@ -139,8 +143,8 @@ if st.button("🔍 Buscar artículos"):
                         # Resumen y PDF
                         resumen = {
                             "Artículos encontrados": len(df),
-                            "Fuentes únicas": df["fuente"].nunique(),
-                            "Años distintos": df["año"].nunique()
+                            "Fuentes únicas": df["fuente"].nunique() if "fuente" in df else 0,
+                            "Años distintos": df["año"].nunique() if "año" in df else 0
                         }
                         pdf_buffer = generar_pdf(df, tema, resumen)
                         st.download_button(
