@@ -24,7 +24,7 @@ key = st.secrets["supabase_key"]
 supabase: Client = create_client(url, key)
 
 # URL del Webhook de n8n
-WEBHOOK_URL = "https://locopro0628.app.n8n.cloud/webhook/busqueda-cientifica"
+WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # =============================
 # FUNCIONES AUXILIARES
@@ -200,4 +200,5 @@ with tabs[1]:
             "search_date": "autores"
         }), "Historial global", resumen_global)
         st.download_button("📥 Descargar informe global PDF", pdf_hist, "historial_busquedas.pdf", mime="application/pdf")
+
 
