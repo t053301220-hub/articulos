@@ -16,7 +16,7 @@ st.set_page_config(page_title="Asistente de Búsqueda Científica", layout="wide
 st.title("🔬 Asistente de Búsqueda Científica")
 
 # URL del Webhook de n8n
-WEBHOOK_URL = "https://locopro0628.app.n8n.cloud/webhook/busqueda-cientifica"
+WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # =============================
 # FUNCIONES AUXILIARES
@@ -140,3 +140,4 @@ if buscar and tema:
 
         except Exception as e:
             st.error(f"❌ Error al conectar con el servicio: {e}")
+
