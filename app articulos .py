@@ -18,8 +18,8 @@ st.set_page_config(page_title="Asistente de Búsqueda Científica", layout="wide
 st.title("🔬 Asistente de Búsqueda Científica")
 
 # Conexión a Supabase
-url = st.secrets["https://ypdtrkvebwjiqlmryaoc.supabase.co"]
-key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwZHRya3ZlYndqaXFsbXJ5YW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNTIzNjEsImV4cCI6MjA3NjgyODM2MX0.cWzJQ59oY8xgZvBJ0I7a1a4XWXkRfeIdHbC3PSzVG4w"]
+url = st.secrets["supabase"]["supabase_url"]
+key = st.secrets["supabase"]["supabase_key"]
 supabase: Client = create_client(url, key)
 
 # URL del Webhook de n8n
@@ -244,4 +244,5 @@ with tabs[1]:
             "search_date": "autores"
         }), "Historial global", resumen_global)
         st.download_button("📥 Descargar informe global PDF", pdf_hist, "historial_busquedas.pdf", mime="application/pdf")
+
 
