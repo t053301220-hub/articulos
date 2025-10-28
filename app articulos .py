@@ -23,7 +23,7 @@ key = st.secrets["supabase_key"]
 supabase: Client = create_client(url, key)
 
 # --- URL del Webhook de n8n ---
-WEBHOOK_URL = "https://locopro0628.app.n8n.cloud/webhook/busqueda-cientifica"
+WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # =============================
 # FUNCIONES AUXILIARES
@@ -189,4 +189,5 @@ with tabs[1]:
 
     except Exception as e:
         st.error(f"Error al cargar historial: {e}")
+
 
