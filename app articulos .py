@@ -18,8 +18,8 @@ st.set_page_config(page_title="Asistente de Búsqueda Científica", layout="wide
 st.title("🔬 Asistente de Búsqueda Científica")
 
 # --- Conexión a Supabase (solo para logs) ---
-url = st.secrets["supabase"]["supabase_url"]
-key = st.secrets["supabase"]["supabase_key"]
+url = st.secrets["supabase_url"]
+key = st.secrets["supabase_key"]
 supabase: Client = create_client(url, key)
 
 # --- URL del Webhook de n8n ---
@@ -189,3 +189,4 @@ with tabs[1]:
 
     except Exception as e:
         st.error(f"Error al cargar historial: {e}")
+
