@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import requests
 import pandas as pd
@@ -24,7 +23,7 @@ key = st.secrets["supabase_key"]
 supabase: Client = create_client(url, key)
 
 # URL del Webhook de n8n
-WEBHOOK_URL = "https://eriks20252.app.n8n.cloud/webhook/busqueda-cientifica"
+WEBHOOK_URL = "https://locopro0628.app.n8n.cloud/webhook/busqueda-cientifica"
 
 # =============================
 # FUNCIONES AUXILIARES
@@ -73,9 +72,18 @@ def mostrar_estadistica(df):
 
     df["año"] = pd.to_numeric(df["año"], errors="coerce")
 
+    # Distribución por año
     st.markdown("#### Distribución de publicaciones por año")
-    st.plotly_chart(px.histogram(df, x="año", nbins=15, title="Publicaciones por año"), use_container_width=True)
+    fig_year = px.histogram(df, x="año", nbins=15, title="Publicaciones por año", color_discrete_sequence=["#636EFA"])
+    st.plotly_chart(fig_year, use_container_width=True)
 
+    # Año más frecuente
+    if df["año"].notna().any():
+        año_mas_publicado = int(df["año"].mode().iloc[0])
+        total_año = (df["año"] == año_mas_publicado).sum()
+        st.info(f"📆 Año con más publicaciones: {año_mas_publicado} ({total_año} artículos)")
+
+    # Palabras clave más comunes
     if "palabras_clave" in df.columns:
         keywords = []
         for kw in df["palabras_clave"].dropna():
@@ -84,10 +92,12 @@ def mostrar_estadistica(df):
             kw_df = pd.DataFrame({"Palabra clave": keywords})
             top_kw = kw_df["Palabra clave"].value_counts().head(10)
             st.markdown("#### Palabras clave más frecuentes")
-            st.plotly_chart(px.bar(
+            fig_kw = px.bar(
                 x=top_kw.index, y=top_kw.values,
-                title="Palabras clave más frecuentes"
-            ), use_container_width=True)
+                title="Palabras clave más frecuentes",
+                color_discrete_sequence=["#EF553B"]
+            )
+            st.plotly_chart(fig_kw, use_container_width=True)
 
 # =============================
 # INTERFAZ PRINCIPAL
@@ -117,16 +127,17 @@ with tabs[0]:
                     "idioma": idioma
                 }
                 res = requests.post(WEBHOOK_URL, json=payload)
+                res.raise_for_status()
                 data = res.json()
-                articles = [a["json"] for a in data]
 
+                articles = [a.get("json", a) for a in data] if isinstance(data, list) else []
                 if not articles:
-                    st.warning("No se encontraron artículos.")
+                    st.warning("⚠️ No se encontraron artículos para ese tema.")
                 else:
                     df = pd.DataFrame(articles)
-                    st.success(f"✅ {len(df)} artículos encontrados")
+                    st.success(f"✅ {len(df)} artículos encontrados para '{tema}'")
 
-                    # Guardar en Supabase
+                    # Guardar búsqueda en Supabase
                     supabase.table("search_logs").insert({
                         "search_term": tema,
                         "fecha_inicio": str(fecha_inicio),
@@ -136,26 +147,23 @@ with tabs[0]:
                         "results_data": json.dumps(articles)
                     }).execute()
 
-                    # Mostrar artículos estilo tarjeta
+                    st.markdown("### 📄 Resultados encontrados")
                     for _, r in df.iterrows():
-                        with st.expander(f"📄 {r['titulo']} ({r['año']})"):
+                        with st.expander(f"📑 {r['titulo']} ({r['año']})"):
                             st.markdown(f"**Autores:** {r['autores']}")
                             st.markdown(f"**Fuente:** {r['fuente']}")
-                            st.markdown(f"**Resumen:** {r['resumen'][:400]}...")
+                            st.markdown(f"**Resumen:** {r['resumen'][:500]}...")
                             if r.get("url"):
-                                st.markdown(f"[🔗 Ver artículo]({r['url']})", unsafe_allow_html=True)
+                                st.markdown(f"[🔗 Ver artículo completo]({r['url']})", unsafe_allow_html=True)
 
-                    # Mostrar estadísticas
                     mostrar_estadistica(df)
 
-                    # Resumen para PDF
                     resumen = {
                         "Artículos encontrados": len(df),
                         "Fuentes únicas": df["fuente"].nunique(),
                         "Años distintos": df["año"].nunique()
                     }
 
-                    # Descargar PDF
                     pdf_buffer = generar_pdf(df, tema, resumen)
                     st.download_button(
                         label="📥 Descargar PDF de resultados",
@@ -163,13 +171,13 @@ with tabs[0]:
                         file_name=f"busqueda_{tema}.pdf",
                         mime="application/pdf"
                     )
-            except Exception as e:
-                st.error(f"Error al realizar la búsqueda: {e}")
 
+            except Exception as e:
+                st.error(f"❌ Error al realizar la búsqueda: {e}")
 
 # ---------- TAB 2: Historial ----------
 with tabs[1]:
-    st.subheader("📜 Historial de búsquedas")
+    st.subheader("📜 Historial de búsquedas previas")
     res = supabase.table("search_logs").select("*").order("search_date", desc=True).execute()
     registros = res.data or []
 
@@ -177,17 +185,53 @@ with tabs[1]:
         st.info("No hay búsquedas registradas aún.")
     else:
         df_hist = pd.DataFrame(registros)
-        df_hist["search_date"] = pd.to_datetime(df_hist["search_date"])
+        if "search_date" in df_hist.columns:
+            df_hist["search_date"] = pd.to_datetime(df_hist["search_date"])
+
         st.dataframe(df_hist[["search_date", "search_term", "idioma", "results_count"]])
 
-        st.markdown("#### Estadísticas globales")
-        fig1 = px.histogram(df_hist, x="search_term", y="results_count", title="Frecuencia de temas buscados")
+        st.markdown("#### 📈 Estadísticas globales")
+        fig1 = px.histogram(df_hist, x="search_term", y="results_count", title="Frecuencia de temas buscados", color_discrete_sequence=["#00CC96"])
         st.plotly_chart(fig1, use_container_width=True)
 
         fig2 = px.pie(df_hist, names="idioma", title="Idiomas utilizados")
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Descargar reporte global
+        # 🔎 Nuevo: ver detalles de cada búsqueda pasada
+        st.markdown("### 🔎 Ver detalles de una búsqueda anterior")
+        selected_search = st.selectbox("Selecciona una búsqueda para ver sus artículos:", df_hist["search_term"].unique())
+
+        if selected_search:
+            detalle = df_hist[df_hist["search_term"] == selected_search].iloc[0]
+            articles_prev = json.loads(detalle["results_data"])
+            df_prev = pd.DataFrame(articles_prev)
+            st.success(f"📚 {len(df_prev)} artículos encontrados para '{selected_search}'")
+
+            for _, r in df_prev.iterrows():
+                with st.expander(f"📑 {r['titulo']} ({r['año']})"):
+                    st.markdown(f"**Autores:** {r['autores']}")
+                    st.markdown(f"**Fuente:** {r['fuente']}")
+                    st.markdown(f"**Resumen:** {r['resumen'][:500]}...")
+                    if r.get("url"):
+                        st.markdown(f"[🔗 Ver artículo completo]({r['url']})", unsafe_allow_html=True)
+
+            mostrar_estadistica(df_prev)
+
+            resumen_prev = {
+                "Artículos encontrados": len(df_prev),
+                "Fuentes únicas": df_prev["fuente"].nunique(),
+                "Años distintos": df_prev["año"].nunique()
+            }
+
+            pdf_prev = generar_pdf(df_prev, selected_search, resumen_prev)
+            st.download_button(
+                label=f"📥 Descargar PDF de '{selected_search}'",
+                data=pdf_prev,
+                file_name=f"busqueda_{selected_search}.pdf",
+                mime="application/pdf"
+            )
+
+        # 📘 PDF global del historial
         resumen_global = {
             "Total búsquedas": len(df_hist),
             "Artículos totales": df_hist["results_count"].sum(),
@@ -200,5 +244,3 @@ with tabs[1]:
             "search_date": "autores"
         }), "Historial global", resumen_global)
         st.download_button("📥 Descargar informe global PDF", pdf_hist, "historial_busquedas.pdf", mime="application/pdf")
-
-
