@@ -1,6 +1,6 @@
 streamlit
-requests
 pandas
-plotly
+requests
 supabase
-reportlab
+python-dateutil
+
