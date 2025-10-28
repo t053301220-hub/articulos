@@ -163,6 +163,9 @@ with tabs[0]:
                         file_name=f"busqueda_{tema}.pdf",
                         mime="application/pdf"
                     )
+            except Exception as e:
+                st.error(f"Error al realizar la búsqueda: {e}")
+
 
 # ---------- TAB 2: Historial ----------
 with tabs[1]:
@@ -197,3 +200,4 @@ with tabs[1]:
             "search_date": "autores"
         }), "Historial global", resumen_global)
         st.download_button("📥 Descargar informe global PDF", pdf_hist, "historial_busquedas.pdf", mime="application/pdf")
+
