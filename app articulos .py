@@ -113,21 +113,49 @@ with tabs[0]:
                 articles = [a.get("json", a) for a in data] if isinstance(data, list) else []
 
                 if not articles:
-                    st.warning("⚠️ No se encontraron artículos.")
+                    st.warning("No se encontraron artículos.")
                 else:
-                    df = pd.DataFrame(articles)
-                    st.success(f"✅ {len(df)} artículos encontrados para '{tema}'")
+                    # Filtrar solo los que tengan título
+                    clean_articles = []
+                    for a in articles:
+                        if isinstance(a, dict) and "titulo" in a and a["titulo"]:
+                            clean_articles.append(a)
+                    if not clean_articles:
+                        st.warning("No se encontraron artículos válidos con título.")
+                    else:
+                        df = pd.DataFrame(clean_articles)
+                        st.success(f"✅ {len(df)} artículos encontrados para '{tema}'")
+                        
+                        # Mostrar artículos estilo tarjeta
+                        for _, r in df.iterrows():
+                            with st.expander(f"📄 {r['titulo']} ({r.get('año', 'N/A')})"):
+                                st.markdown(f"**Autores:** {r.get('autores', 'Desconocido')}")
+                                st.markdown(f"**Fuente:** {r.get('fuente', 'N/A')}")
+                                resumen = r.get('resumen', 'Sin resumen disponible')
+                                st.markdown(f"**Resumen:** {resumen[:400]}...")
+                                if r.get("url"):
+                                    st.markdown(f"[🔗 Ver artículo]({r['url']})", unsafe_allow_html=True)
 
-                    # Guardar búsqueda en Supabase (solo log)
-                    supabase.table("search_logs").insert({
-                        "search_term": tema,
-                        "fecha_inicio": str(fecha_inicio),
-                        "fecha_fin": str(fecha_fin),
-                        "idioma": idioma,
-                        "results_count": len(df),
-                        "results_data": json.dumps(articles)
-                    }).execute()
+                        # Mostrar estadísticas
+                        mostrar_estadistica(df)
 
+                        # Resumen para PDF
+                        resumen = {
+                            "Artículos encontrados": len(df),
+                            "Fuentes únicas": df["fuente"].nunique(),
+                            "Años distintos": df["año"].nunique()
+                        }
+
+                        # Descargar PDF
+                        pdf_buffer = generar_pdf(df, tema, resumen)
+                        st.download_button(
+                            label="📥 Descargar PDF de resultados",
+                            data=pdf_buffer,
+                            file_name=f"busqueda_{tema}.pdf",
+                            mime="application/pdf"
+                        )
+
+                    
                     # Mostrar artículos
                     for _, r in df.iterrows():
                         with st.expander(f"📄 {r['titulo']} ({r['año']})"):
@@ -189,5 +217,6 @@ with tabs[1]:
 
     except Exception as e:
         st.error(f"Error al cargar historial: {e}")
+
 
 
